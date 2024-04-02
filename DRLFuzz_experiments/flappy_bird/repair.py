@@ -64,13 +64,15 @@ def getData(arg):
     s = torch.tensor(s, dtype=torch.float32, requires_grad=False).cuda()
     while True:
         pred = net(s)
-        label = net(s)
+        label = pred.clone().detach()
         a = torch.argmax(pred)
+        # print(pred.tolist())
         reward = 0
         if s[1] <  0 and s[2] > 0:
             reward +=  1
         else:
             reward += -2
+        print(p.getActionSet())
         r = p.act(p.getActionSet()[a])
         if r == 0:
             reward += 1

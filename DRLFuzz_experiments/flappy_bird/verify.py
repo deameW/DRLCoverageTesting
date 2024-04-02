@@ -1,3 +1,5 @@
+import time
+
 import torch
 from test_flappy_bird import TestFlappyBird
 from ple import PLE
@@ -5,13 +7,13 @@ import numpy as np
 import random
 import os
 
-os.environ['SDL_VIDEODRIVER'] = "dummy"
+# os.environ['SDL_VIDEODRIVER'] = "dummy"
 os.environ['CUDA_VISIBLE_DEVICES'] = "0"
 
 class model(torch.nn.Module):
     def __init__(self):
         super().__init__()
-        self.fc1 = torch.nn.Linear(7, 128)
+        self.fc1 = torch.nn.Linear(8, 128)
         self.fc2 = torch.nn.Linear(128, 128)
         self.fc3 = torch.nn.Linear(128 ,64)
         self.fc4 = torch.nn.Linear(64 ,2)
@@ -34,7 +36,9 @@ def test(net, arg):
     p.reset_game()
     testFlappybird._init(pipe1, pipe2, dist, vel)
     t = p.getGameState()
+    # s = t.values()
     s = [
+                t['player_y'],
                 t['player_vel'],
                 t['player_y']-t['next_pipe_bottom_y'], 
                 t['player_y']-t['next_pipe_top_y'],
@@ -43,8 +47,10 @@ def test(net, arg):
                 t['player_y']-t['next_next_pipe_top_y'],
                 t['next_next_pipe_dist_to_player'],
               ]
+    # s_ = list(p.getGameState().values())
     while True:
         s = torch.tensor(s, dtype=torch.float32, requires_grad=False).cuda()
+        # pred = net(s).cpu().detach().numpy()
         pred = net(s).cpu().detach().numpy()
         a = np.argmax(pred)
         p.act(p.getActionSet()[a])
@@ -52,6 +58,7 @@ def test(net, arg):
             break
         t = p.getGameState()
         s = [
+                t['player_y'],
                 t['player_vel'],
                 t['player_y']-t['next_pipe_bottom_y'], 
                 t['player_y']-t['next_pipe_top_y'],
@@ -60,18 +67,21 @@ def test(net, arg):
                 t['player_y']-t['next_next_pipe_top_y'],
                 t['next_next_pipe_dist_to_player'],
               ]
+        # s = t
+        time.sleep(0.01)
+
     return p.score()+5
 
 def verify(net, num):
-    random.seed(2003511)
-    scores = list()
-    case = np.loadtxt(casePath)
-    for c in case:
-        score = test(net, (c[0], c[1], c[2], c[3]))
-        scores.append(score)
-    scores = np.array(scores)
-    print([s for s in scores])
-    print("Bad Cases mean:{} max{} min{} std{}".format(np.mean(scores), np.max(scores), np.min(scores), np.std(scores)))
+    # random.seed(2003511)
+    # scores = list()
+    # case = np.loadtxt(casePath)
+    # for c in case:
+    #     score = test(net, (c[0], c[1], c[2], c[3]))
+    #     scores.append(score)
+    # scores = np.array(scores)
+    # print([s for s in scores])
+    # print("Bad Cases mean:{} max{} min{} std{}".format(np.mean(scores), np.max(scores), np.min(scores), np.std(scores)))
     random.seed(2003511)
     scores = list()
     for i in range(num):
@@ -87,17 +97,19 @@ def verify(net, num):
 
 modelPath = "../result/flappy_bird/model/flappy_bird_model.pkl"
 fixedModelPath= "../result/flappy_bird/model/flappy_bird_model_repaired.pkl"
+myDQNPath = "../result/flappy_bird/model/wq_flappy_bird_dqn.pkl"
 casePath = "../result/flappy_bird/result_DRLFuzz.txt"
 testFlappybird = TestFlappyBird()
-p = PLE(testFlappybird, fps=30, display_screen=False, force_fps=True)
+p = PLE(testFlappybird, fps=30, display_screen=True)
 p.init()
 gamma = 0.9
 
 if __name__ == '__main__':
     print("Before retraining")
-    net = torch.load(modelPath).cuda().eval()
-    verify(net, 10000)
-    print("After retraining")
-    net = torch.load(fixedModelPath).cuda().eval()
-    verify(net, 10000)
+    # net = torch.load(myDQNPath).cuda().eval()
+    net = torch.load(myDQNPath)
+    verify(net, 1000)
+    # print("After retraining")
+    # net = torch.load(fixedModelPath).cuda().eval()
+    # verify(net, 1000)
     
