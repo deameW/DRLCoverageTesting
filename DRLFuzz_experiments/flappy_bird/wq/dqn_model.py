@@ -1,20 +1,12 @@
-import json
-import time
-
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import numpy as np
-
-from DRLFuzz_experiments.flappy_bird.test_flappy_bird import TestFlappyBird
-# import gym
-
-from ple.games.flappybird import FlappyBird
-from ple import PLE
-from pygame.constants import K_w
-
-import numpy as np
 import os
+
+import numpy as np
+import torch
+import torch.nn.functional as F
+from torch import nn
+
+N_ACTIONS = 2  # env.action_space.n
+N_STATES = 8  # env.observation_space.shape[0]
 
 # Hyper Parameters
 BATCH_SIZE = 32
@@ -23,15 +15,6 @@ EPSILON = 0.95  # greedy policy
 GAMMA = 0.995  # reward discount
 TARGET_REPLACE_ITER = 100  # target update frequency
 MEMORY_CAPACITY = 20000
-
-# game = FlappyBird()
-testFlappybird = TestFlappyBird()
-env = PLE(testFlappybird, fps=30, display_screen=True)
-
-N_ACTIONS = 2  # env.action_space.n
-N_STATES = 8  # env.observation_space.shape[0]
-os.environ['SDL_VIDEODRIVER'] = "dummy"
-
 
 class Net(nn.Module):
 
@@ -58,7 +41,6 @@ class Net(nn.Module):
         x = F.tanh(x)
         actions_value = self.out(x)
         return actions_value
-
 
 class DQN(object):
     def __init__(self):
@@ -87,7 +69,7 @@ class DQN(object):
         print('save model')
 
     def load_model(self):
-        print(os.path.exists("./data/train_data.xlsx"), os.path.exists(self.f2))
+        print("load model----")
         if os.path.exists(self.f1):
             self.eval_net.load_state_dict(torch.load(self.f1))
             self.target_net.load_state_dict(torch.load(self.f2))
@@ -98,6 +80,7 @@ class DQN(object):
         # input only one sample
         if np.random.uniform() < e:  # greedy
             actions_value = self.eval_net.forward(x)
+            print(actions_value)
             action = torch.max(actions_value, 1)[1].data.numpy()
         else:  # random
             action = np.random.randint(0, N_ACTIONS)
@@ -107,7 +90,6 @@ class DQN(object):
     def store_transition(self, s, a, r, s_, isdone=False):
         self.store_train_data(s, a, r, s_, isdone)
 
-        # print('h',s, a, r, s_)
         transition = np.hstack((s, [a, r], s_))
         # replace the old memory with new memory
         index = self.memory_counter % MEMORY_CAPACITY
@@ -148,116 +130,3 @@ class DQN(object):
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
-
-
-def convert_to_serializable(data):
-    if isinstance(data, np.int32):
-        return int(data)
-    elif isinstance(data, list):
-        return [convert_to_serializable(x) for x in data]
-    else:
-        return data
-
-
-def test_model(iteration, save_path):
-    score_all_episodes = 0
-    episode_data = []
-
-    dqn = DQN()
-    dqn.load_model()
-
-    env.init()
-    reward = env.act(None)
-    env.reset_game()
-
-    for i_episode in range(iteration):
-        ep_r = 0
-        episode_states = []
-
-        s = None
-        s_ = list(env.getGameState().values())
-        episode_states.append(s_)
-
-        while True:
-            s = s_
-            a = dqn.choose_action(s, 0.95)
-            ac = None
-            if a:
-                ac = K_w
-
-            r = env.act(ac)
-            s_ = list(env.getGameState().values())
-            episode_states.append(s_)
-
-            done = env.game_over()
-            ep_r += r
-
-            # time.sleep(0.01)
-
-            if done:
-                env.reset_game()
-                score_all_episodes += ep_r
-                episode_data.append({"total_reward": ep_r, "states": episode_states})
-                print('Ep: ', i_episode, '| Ep_r: ', round(ep_r, 2))
-                break
-
-    # 转换数据为 JSON 可序列化格式
-    serializable_data = [dict((k, convert_to_serializable(v)) for k, v in episode.items()) for episode in episode_data]
-
-    # 保存数据到JSON文件
-    with open(save_path, 'w') as f:
-        json.dump(serializable_data, f)
-
-    print("Average score: ", score_all_episodes / iteration)
-
-
-def train_model(iteration):
-    dqn = DQN()
-    env.init()
-    reward = env.act(None)
-    env.reset_game()
-
-    print('\nCollecting experience...')
-
-    t = 0
-    ep_r = 0
-    s = None
-    s_ = list(env.getGameState().values())
-    print(s_)
-    for i_episode in range(iteration):
-        # env.render()
-        ep_r = 0
-
-        while 1:
-            # s = s_[1:len(s_)]
-            s = s_
-            a = dqn.choose_action(s, 0.95)
-            t = t + 1
-            ac = None
-            if a:
-                ac = K_w
-
-            r = env.act(ac)
-            s_ = list(env.getGameState().values())
-            done = env.game_over()
-
-            # time.sleep(0.01)
-
-            dqn.store_transition(s, a, r, s_, done)
-            ep_r += r
-            if dqn.memory_counter > MEMORY_CAPACITY:
-                dqn.learn()
-            if done:
-                env.reset_game()
-                print('t=', t, 'Ep: ', i_episode,
-                      '| Ep_r: ', round(ep_r, 2))
-                break
-
-    # 保存文件
-    dqn.save_model()
-
-
-if __name__ == '__main__':
-    # test_model(1000, "./test/states_record.json")
-
-    train_model(10000)

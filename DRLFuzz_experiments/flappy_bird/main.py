@@ -1,6 +1,9 @@
 import time
 
 import torch
+from torch import nn
+import torch.nn.functional as F
+
 from DRLFuzz_experiments.flappy_bird.test_flappy_bird import TestFlappyBird
 from ple import PLE
 import numpy as np
@@ -15,23 +18,30 @@ os.environ['SDL_VIDEODRIVER'] = "dummy"
 os.environ['CUDA_VISIBLE_DEVICES'] = "0"
 
 
-class model(torch.nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.fc1 = torch.nn.Linear(7, 128)
-        self.fc2 = torch.nn.Linear(128, 128)
-        self.fc3 = torch.nn.Linear(128, 64)
-        self.fc4 = torch.nn.Linear(64, 2)
+class model(nn.Module):
+    def __init__(self, ):
+        super(model, self).__init__()
+        self.fc1 = nn.Linear(8, 128)
+        self.fc1.weight.data.normal_(0, 0.1)  # initialization
 
-    def forward(self, input):
-        output = self.fc1(input)
-        output = torch.nn.functional.relu(output)
-        output = self.fc2(output)
-        output = torch.nn.functional.relu(output)
-        output = self.fc3(output)
-        output = torch.nn.functional.relu(output)
-        output = self.fc4(output)
-        return output
+        self.fc2 = nn.Linear(128, 128)
+        self.fc2.weight.data.normal_(0, 0.1)  # initialization
+
+        self.fc3 = nn.Linear(128, 64)
+        self.fc3.weight.data.normal_(0, 0.1)  # initialization
+
+        self.out = nn.Linear(64, 2)
+        self.out.weight.data.normal_(0, 0.1)  # initialization
+
+    def forward(self, x):
+        x = self.fc1(x)
+        x = F.tanh(x)
+        x = self.fc2(x)
+        x = F.tanh(x)
+        x = self.fc3(x)
+        x = F.tanh(x)
+        actions_value = self.out(x)
+        return actions_value
 
 
 """
@@ -48,6 +58,7 @@ def test(arg):
     testFlappybird._init(pipe1, pipe2, dist, vel)
     t = p.getGameState()  # TODO 这里的信息是输入初始状态环境返回的状态？    —— no，是init state的详细信息
     s = [
+        t['player_y'],
         t['player_vel'],
         t['player_y'] - t['next_pipe_bottom_y'],
         t['player_y'] - t['next_pipe_top_y'],
@@ -74,11 +85,12 @@ def test(arg):
         a = np.argmax(pred)
         p.act(p.getActionSet()[a])
 
-        time.sleep(0.02)
+        # time.sleep(0.02)
         if testFlappybird.game_over() or p.score() > 10:
             break
         t = p.getGameState()
         s = [
+            t['player_y'],
             t['player_vel'],
             t['player_y'] - t['next_pipe_bottom_y'],
             t['player_y'] - t['next_pipe_top_y'],
@@ -99,6 +111,7 @@ def mutator(arg, l):
     testFlappybird._init(pipe1, pipe2, dist, vel)
     t = p.getGameState()
     s = [
+        t['player_y'],
         t['player_vel'],
         t['player_y'] - t['next_pipe_bottom_y'],
         t['player_y'] - t['next_pipe_top_y'],
@@ -108,7 +121,7 @@ def mutator(arg, l):
         t['next_next_pipe_dist_to_player'],
     ]
     s = torch.tensor(s, dtype=torch.float32, requires_grad=False).cuda()
-    pred = net(s)
+    pred = net.forward(s)
     a = torch.argmax(pred)
     reward = 0
     if s[1] < 0 and s[2] > 0:
@@ -125,6 +138,7 @@ def mutator(arg, l):
 
     t = p.getGameState()
     s_1 = [
+        t['player_y'],
         t['player_vel'],
         t['player_y'] - t['next_pipe_bottom_y'],
         t['player_y'] - t['next_pipe_top_y'],
@@ -241,8 +255,9 @@ MEMORY_CAPACITY = 20000
 FlappyBird = FlappyBird()
 
 testFlappybird = TestFlappyBird()
-path = "../result/flappy_bird/model/flappy_bird_model.pkl"
-net = torch.load(path).cuda().eval()
+path = "./wq/model/wq_flappy_bird_dqn_1w.pkl"
+net = model().cuda()
+net.load_state_dict(torch.load(path))
 savePath = "../result/flappy_bird/result_DRLFuzz.txt"
 p = PLE(testFlappybird, fps=30, display_screen=True, force_fps=True)
 p.init()
@@ -254,6 +269,6 @@ delta = 20
 innerDelta = 20
 
 if __name__ == '__main__':
-    if (os.path.exists(savePath)):
+    if os.path.exists(savePath):
         os.remove(savePath)
     result = DRLFuzz(100, 1000, 10, 0.1, 2, True)

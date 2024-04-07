@@ -1,7 +1,6 @@
 import json
 import numpy as np
-from my_dqn import DQN, env
-from test_dqn import test_model
+from dqn_test import test_model
 
 
 # 加载之前保存的 JSON 文件并按照总奖励排序状态
@@ -14,6 +13,7 @@ def load_sorted_states(file_path):
 
 # 选择初始种群
 def select_initial_population(sorted_states, population_size):
+    print(sorted_states[:population_size])
     return [state['initial_state'] for state in sorted_states[:population_size]]
 
 
@@ -57,15 +57,15 @@ def mutation(individual, mutation_rate):
 
 # Check if the seeds generated are under a reasonable situation.
 def checkMutationReasonable(state):
-    if state[4] > 200 & state[3] <= 320 & state[3] >= 0 & state[6] <= 300 & state[6] >= 0:
+    if state[4] > 200 and 320 >= state[3] >= 0 and 300 >= state[6] >= 0:
         return True
     return False
 
 
 if __name__ == "__main__":
     # 文件路径和种群大小
-    file_path = "./test/states_generic.json"
-    population_size = 10
+    file_path = "./test/random_test.json"
+    population_size = 30
 
     # 加载并排序状态
     sorted_states = load_sorted_states(file_path)
@@ -125,5 +125,5 @@ if __name__ == "__main__":
     print("Final population fitness:", final_fitness)
 
     # 将字典保存为 JSON 文件
-    with open("./after_mutate.json", 'w') as f:
+    with open("data/after_mutate.json", 'w') as f:
         json.dump(data, f)

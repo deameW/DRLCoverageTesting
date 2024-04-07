@@ -65,14 +65,16 @@ def getData(arg):
     while True:
         pred = net(s)
         label = pred.clone().detach()
-        a = torch.argmax(pred)
-        # print(pred.tolist())
+        a = pred.tolist().index(max(pred.tolist()))
+        # a = torch.argmax()
+        # print(pred)
+        print(a)
         reward = 0
         if s[1] <  0 and s[2] > 0:
             reward +=  1
         else:
             reward += -2
-        print(p.getActionSet())
+        # print(p.getActionSet())
         r = p.act(p.getActionSet()[a])
         if r == 0:
             reward += 1
