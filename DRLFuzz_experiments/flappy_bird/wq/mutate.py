@@ -1,10 +1,24 @@
 import json
 import random
 import numpy as np
+from scipy.spatial.distance import euclidean, hamming
 
 from DRLFuzz_experiments.flappy_bird.wq.dqn_test import test_model
 
 test_for_one_indivisual = 1
+
+# initial state file path
+file_path = "./test/episode_info_random_start.json"
+
+# niching strategy
+# msaw: most similar among worst, wams: worst_among_most_similar
+n_s = "wams"
+
+# distance meature
+d_m = "euclidean"
+
+# niching distance threshhold
+n_s_t = 10
 
 
 class Individual:
@@ -80,10 +94,63 @@ def fitness_function(population):
     return avg_rewards
 
 
-file_path = "./test/episode_info_random_start.json"
+# d_m: distance measure
+def similarity(indivisual1, indivisual2, d_m):
+    state1 = indivisual1.state
+    state2 = indivisual2.state
+
+    if d_m is None:
+        d_m = 'euclidean'
+    # import pdb; pdb.set_trace()
+    if d_m == 'euclidean':
+        return euclidean(state1, state2)
+    if d_m == 'hamming':
+        return hamming(state1, state2)
+
+    raise ValueError("Unknown distance measure {}".
+                     format(d_m))
 
 
-#DRLGenetic
+# 小生境遗传算法淘汰策略
+"""
+    对于DRLGenetic的每一次调用，最后种群中会有100个个体，第一回合的将加入到一个resultArchive中，
+    接下来的每一回合，生成的最终种群使用niching_strategy
+"""
+
+
+def updateCollectionNiching(single_individual, individual_collection, threshold):
+    # 遍历个体集合中的每个个体
+    if n_s == "wams":
+        for index, i_c in enumerate(individual_collection):
+            # 如果个体与新个体的相似度低于阈值并且个体的适应度低于新个体的适应度
+            if similarity(single_individual, i_c) <= threshold and i_c.fitness < single_individual.fitness:
+                # 更新个体集合中的个体为新个体
+                individual_collection[index] = single_individual
+
+    if n_s == "msaw": # most similar among worst
+        sortedCollection = sorted(individual_collection, key=lambda x: x['fitness'], reverse=True) # fitness大的需要被替换
+        for index, s_c in enumerate(sortedCollection):
+            if index < 10: # 前10个fitness最大的替换
+                if similarity(single_individual, s_c) < threshold:
+                    sortedCollection[index] = single_individual
+    # 排重
+    remove_duplicates(individual_collection)
+
+def remove_duplicates(individual_collection):
+    unique_collection = []
+    for indivisual in individual_collection:
+        state_exists = False
+        for unique_individual in unique_collection:
+            if indivisual.state == unique_individual.state:
+                state_exists = True
+                break
+        if not state_exists:
+            unique_collection.append(indivisual)
+    return unique_collection
+
+
+
+# DRLGenetic
 def DRLGenetic(iteration, generation_iteration, population_size, crossover_rate, mutation_rate):
     # 加载并排序状态
     sorted_states = load_sorted_states(file_path)
@@ -107,54 +174,61 @@ def DRLGenetic(iteration, generation_iteration, population_size, crossover_rate,
 
     # 用于存储每一代的状态和适应度
     generation_data = []
+    resultArchive = [initial_population]
 
-    # 迭代进行遗传算法
-    for generation in range(generation_iteration):
-        print("generation: ", generation + 1, "Start.")
-        # 将当前种群按照适应度进行排序
-        sorted_population = sorted(current_population, key=lambda x: x.fitness_value)
+    for i in range(iteration):
+        print("-----------------------iteration {}------------------------".format(iteration + 1))
+        # 迭代进行遗传算法
+        for generation in range(generation_iteration):
+            print("generation: ", generation + 1, "Start.")
+            # 将当前种群按照适应度进行排序
+            sorted_population = sorted(current_population, key=lambda x: x.fitness_value)
 
-        # 保留前 10% 的个体到下一代
-        next_generation = sorted_population[:population_size // 10]
+            # 保留前 10% 的个体到下一代
+            next_generation = sorted_population[:population_size // 10]
 
-        # 选择父代进行交叉和变异
-        new_population = []
-        while len(new_population) < population_size - len(next_generation):
-            # 从当前种群的前 50% 中随机选择两个个体作为父代
-            parent1 = random.choice(sorted_population[:population_size // 2])
-            parent2 = random.choice(sorted_population[:population_size // 2])
+            # 选择父代进行交叉和变异
+            new_population = []
+            while len(new_population) < population_size - len(next_generation):
+                # 从当前种群的前 50% 中随机选择两个个体作为父代
+                parent1 = random.choice(sorted_population[:population_size // 2])
+                parent2 = random.choice(sorted_population[:population_size // 2])
 
-            if np.random.rand() < crossover_rate:
-                child1, child2 = crossover(parent1, parent2)
-                new_population.extend([mutation(child1, mutation_rate), mutation(child2, mutation_rate)])
-            else:
-                new_population.append(mutation(parent1, mutation_rate))
+                if np.random.rand() < crossover_rate:
+                    child1, child2 = crossover(parent1, parent2)
+                    new_population.extend([mutation(child1, mutation_rate), mutation(child2, mutation_rate)])
+                else:
+                    new_population.append(mutation(parent1, mutation_rate))
 
-        # 更新种群
-        current_population = next_generation + new_population
+            # 更新种群
+            current_population = next_generation + new_population
 
-        # 计算适应度
-        newFitness = fitness_function(current_population)
+            # 计算适应度
+            newFitness = fitness_function(current_population)
 
-        # 输出每代的适应度
-        print("Generation", generation + 1, "fitness:", newFitness)
-        print("Generation", generation + 1, "mutated states:", getStatesFromPopulation(current_population))
-        print("Generation", generation + 1, "Ends.")
+            # 输出每代的适应度
+            print("Generation", generation + 1, "fitness:", newFitness)
+            print("Generation", generation + 1, "mutated states:", getStatesFromPopulation(current_population))
+            print("Generation", generation + 1, "Ends.")
 
-        # 记录每一代的状态和适应度
-        generation_data.append({
-            "generation": generation + 1,
-            "fitness": newFitness,
-            "states": getStatesFromPopulation(current_population)
-        })
+            # 记录每一代的状态和适应度
+            generation_data.append({
+                "generation": generation + 1,
+                "fitness": newFitness,
+                "states": getStatesFromPopulation(current_population)
+            })
 
-    # 输出最终种群的适应度
-    final_fitness = getFitnessFromPopulation(current_population)
-    print("Final population fitness:", final_fitness)
+        # 输出最终种群的适应度
+        final_fitness = getFitnessFromPopulation(current_population)
+
+        #更新resultArchive
+        for c_p in current_population:
+            updateCollectionNiching(c_p, resultArchive, n_s_t)
+        print("Final population fitness:", final_fitness)
 
     # 将每一代的状态和适应度写入到 JSON 文件中
     with open("./data/generation_data.json", "w") as json_file:
-        json.dump(generation_data, json_file)
+        json.dump(resultArchive, json_file)
 
 
 def getStatesFromPopulation(population):
@@ -173,5 +247,6 @@ def getFitnessFromPopulation(population):
 
 if __name__ == "__main__":
     # iteration, generation, population, crossover_rate, mutation_rate.
-    DRLGenetic(1000, 50, 10, 0.8, 0.1)
+    DRLGenetic(1000, 50, 100, 0.8, 0.1)
     # check_mutation_reasonable([141.0, 33.0, -102.0, -50.0])
+    # print(similarity(Individual([143, 44, -113, 100], 1), Individual([110, 50, -89, 7], 1), d_m))
