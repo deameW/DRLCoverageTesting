@@ -123,18 +123,19 @@ def updateCollectionNiching(single_individual, individual_collection, threshold)
     if n_s == "wams":
         for index, i_c in enumerate(individual_collection):
             # 如果个体与新个体的相似度低于阈值并且个体的适应度低于新个体的适应度
-            if similarity(single_individual, i_c) <= threshold and i_c.fitness < single_individual.fitness:
+            if similarity(single_individual, i_c, d_m) <= threshold and i_c.fitness_value < single_individual.fitness_value:
                 # 更新个体集合中的个体为新个体
                 individual_collection[index] = single_individual
 
-    if n_s == "msaw": # most similar among worst
-        sortedCollection = sorted(individual_collection, key=lambda x: x['fitness'], reverse=True) # fitness大的需要被替换
+    if n_s == "msaw":  # most similar among worst
+        sortedCollection = sorted(individual_collection, key=lambda x: x['fitness_value'], reverse=True)  # fitness大的需要被替换
         for index, s_c in enumerate(sortedCollection):
-            if index < 10: # 前10个fitness最大的替换
-                if similarity(single_individual, s_c) < threshold:
+            if index < 10:  # 前10个fitness最大的替换
+                if similarity(single_individual, s_c, d_m) < threshold:
                     sortedCollection[index] = single_individual
     # 排重
     remove_duplicates(individual_collection)
+
 
 def remove_duplicates(individual_collection):
     unique_collection = []
@@ -147,7 +148,6 @@ def remove_duplicates(individual_collection):
         if not state_exists:
             unique_collection.append(indivisual)
     return unique_collection
-
 
 
 # DRLGenetic
@@ -174,7 +174,7 @@ def DRLGenetic(iteration, generation_iteration, population_size, crossover_rate,
 
     # 用于存储每一代的状态和适应度
     generation_data = []
-    resultArchive = [initial_population]
+    resultArchive = initial_population
 
     for i in range(iteration):
         print("-----------------------iteration {}------------------------".format(iteration + 1))
@@ -221,7 +221,7 @@ def DRLGenetic(iteration, generation_iteration, population_size, crossover_rate,
         # 输出最终种群的适应度
         final_fitness = getFitnessFromPopulation(current_population)
 
-        #更新resultArchive
+        # 更新resultArchive
         for c_p in current_population:
             updateCollectionNiching(c_p, resultArchive, n_s_t)
         print("Final population fitness:", final_fitness)
