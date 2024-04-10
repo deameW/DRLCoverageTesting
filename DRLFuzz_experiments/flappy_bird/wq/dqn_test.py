@@ -16,9 +16,9 @@ def convert_to_float(obj):
     return obj
 
 
-def test_model(iteration, save_path, initial_state, mutate=False):
+def test_model(iteration, initial_state, mutate=False):
     score_all_episodes = 0
-    episode_data = []
+    # episode_data = []
     failedEpisode = 0
 
     dqn = DQN()
@@ -28,7 +28,7 @@ def test_model(iteration, save_path, initial_state, mutate=False):
 
     for i_episode in range(iteration):
         ep_r = 0
-        episode_states = []
+        # episode_states = []
         env.reset_game()
 
         # Call TestFlappybird to initialize the game if initial states are given
@@ -37,11 +37,11 @@ def test_model(iteration, save_path, initial_state, mutate=False):
             testFlappybird._init(s_[0], s_[1], s_[2], s_[3])
             t = list(env.getGameState().values())
             s_ = t
-            episode_states.append(convert_to_float(t))
+            # episode_states.append(convert_to_float([t[3], t[6], t[2] - 309, t[1]]))
         # Let game picks initial state randomly
         else:
             s_ = list(env.getGameState().values())
-            episode_states.append(convert_to_float(s_))
+            # episode_states.append(convert_to_float([s_[3], s_[6], s_[2] - 309, s_[1]]))
 
         while True:
             # Choose an action by trained model
@@ -50,44 +50,30 @@ def test_model(iteration, save_path, initial_state, mutate=False):
             ac = K_w if a else None
             r = env.act(ac)
 
-            time.sleep(0.01)
+            # time.sleep(0.01)
 
             # Record the new state returned from environment
             s_ = list(env.getGameState().values())
-            episode_states.append(convert_to_float(s_))
+            # episode_states.append(convert_to_float([s_[3], s_[6], s_[2] - 309, s_[1]]))
 
             # To tell if the game is over
             done = env.game_over()
             ep_r += r
-
             if done:
                 # Record the information of the episode
-                episode_data.append({
-                    "initial_state": episode_states[0],
-                    "last_state_before_failure": episode_states[-1],
-                    "total_reward": ep_r
-                })
                 score_all_episodes += ep_r
-                print('Ep: ', i_episode, '| Ep_r: ', round(ep_r, 2))
-
-                if ep_r <= 10:
+                # print('Ep: ', i_episode, '| Ep_r: ', round(
+                #     ep_r, 2))
+                if ep_r <= 2:
                     failedEpisode += 1
                 break
-
-    # Dump the information of all episodes to json file
-    average_score = score_all_episodes / iteration
-    print("Average score: ", average_score)
-    episode_data.append({
-        "average_score": average_score,
-        "failed_episode": failedEpisode,
-    })
-    if save_path != "":
-        with open(save_path, 'w') as f:
-            json.dump(episode_data, f, default=convert_to_float)
-
+    episode_data = {
+        "initial_state": initial_state,
+        "avg_award_over_episodes": score_all_episodes / iteration
+    }
+    print("Initial State [{}]avg reward over {} episodes: ".format(initial_state, iteration), score_all_episodes / iteration)
     # Return the average score under a given initial state
-    if mutate:
-        return score_all_episodes / iteration
+    return episode_data
 
 
 """ 
@@ -102,6 +88,26 @@ def test_model(iteration, save_path, initial_state, mutate=False):
      'next_next_pipe_bottom_y': 409
 """
 
+"""
+    TODO
+    8维度和4维度state如何转换？
+    [152, 158, -110, -5] s
+    [256, -5, 199.0, 152, 252, 343.0, 158, 258] t
+    
+    s = t[
+        t[3],
+        t[6],
+        t[2] - 309
+        t[1]
+    ]
+"""
+
+save_path = "./test/episode_info_random_start.json"
+
+
+def testInitialState(iteration, state):
+    return test_model(iteration, state)  # Random Initial State
+
 
 def randomGenerate():
     pipe1 = random.randint(25, 192)
@@ -112,5 +118,13 @@ def randomGenerate():
 
 
 if __name__ == '__main__':
-    # test_model(100, "./test/episode_info_random_start.json", randomGenerate())  # Random Initial State
-    test_model(100, "./test/episode_info_random_start.json", [110, 87, -113, -23])  # Random Initial State
+    # dump_info = []
+    # for i in range(100):
+    #     episode_data = testInitialState(1, randomGenerate())
+    #     dump_info.append(episode_data)
+    #
+    # if save_path != "":
+    #     with open(save_path, 'w') as f:
+    #         json.dump(dump_info, f, default=convert_to_float)
+
+    test_model(100, [128, 32, -81, -56])

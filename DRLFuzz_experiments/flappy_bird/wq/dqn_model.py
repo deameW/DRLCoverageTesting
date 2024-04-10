@@ -69,18 +69,18 @@ class DQN(object):
         print('save model')
 
     def load_model(self):
-        print("load model----")
+        # print("load model----")
         if os.path.exists(self.f1):
             self.eval_net.load_state_dict(torch.load(self.f1))
             self.target_net.load_state_dict(torch.load(self.f2))
-            print('load model')
+            # print('load model')
 
     def choose_action(self, x, e=EPSILON):
         x = torch.unsqueeze(torch.FloatTensor(x), 0)
         # input only one sample
         if np.random.uniform() < e:  # greedy
             actions_value = self.eval_net.forward(x)
-            print(actions_value)
+            # print(actions_value)
             action = torch.max(actions_value, 1)[1].data.numpy()
         else:  # random
             action = np.random.randint(0, N_ACTIONS)

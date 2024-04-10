@@ -212,6 +212,7 @@ def DRLFuzz(num, n, l, alpha, theta, coverage):
                     statePool[idx[i]] = randFun(coverage)
             else:
                 statePool[idx[i]] = randFun(coverage)
+    print("state poll len: ", len(statePool))
     return resultPool
 
 
@@ -272,3 +273,4 @@ if __name__ == '__main__':
     if os.path.exists(savePath):
         os.remove(savePath)
     result = DRLFuzz(100, 1000, 10, 0.1, 2, True)
+    print(len(result))
