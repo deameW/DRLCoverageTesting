@@ -50,7 +50,7 @@ def test_model(iteration, initial_state, mutate=False):
             ac = K_w if a else None
             r = env.act(ac)
 
-            # time.sleep(0.01)
+            # time.sleep(0.02)
 
             # Record the new state returned from environment
             s_ = list(env.getGameState().values())
@@ -71,7 +71,7 @@ def test_model(iteration, initial_state, mutate=False):
         "initial_state": initial_state,
         "avg_award_over_episodes": score_all_episodes / iteration
     }
-    print("Initial State [{}]avg reward over {} episodes: ".format(initial_state, iteration), score_all_episodes / iteration)
+    # print("Initial State [{}]avg reward over {} episodes: ".format(initial_state, iteration), score_all_episodes / iteration)
     # Return the average score under a given initial state
     return episode_data
 
@@ -127,4 +127,4 @@ if __name__ == '__main__':
     #     with open(save_path, 'w') as f:
     #         json.dump(dump_info, f, default=convert_to_float)
 
-    test_model(100, [128, 32, -81, -56])
+    test_model(100, [143, 44, -113, -56])
