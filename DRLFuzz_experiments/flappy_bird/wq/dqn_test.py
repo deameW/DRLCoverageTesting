@@ -50,7 +50,7 @@ def test_model(iteration, initial_state, mutate=False):
             ac = K_w if a else None
             r = env.act(ac)
 
-            # time.sleep(0.02)
+            time.sleep(0.02)
 
             # Record the new state returned from environment
             s_ = list(env.getGameState().values())
@@ -117,6 +117,8 @@ def randomGenerate():
     return [pipe1, pipe2, dist, vel]
 
 
+
+
 if __name__ == '__main__':
     # dump_info = []
     # for i in range(100):
@@ -127,4 +129,4 @@ if __name__ == '__main__':
     #     with open(save_path, 'w') as f:
     #         json.dump(dump_info, f, default=convert_to_float)
 
-    test_model(100, [143, 44, -113, -56])
+    test_model(100, randomGenerate())

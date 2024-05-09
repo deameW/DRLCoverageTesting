@@ -1,5 +1,7 @@
 import json
 import random
+import time
+
 import numpy as np
 from scipy.spatial.distance import euclidean, hamming
 
@@ -12,14 +14,15 @@ file_path = "./test/episode_info_random_start.json"
 
 # niching strategy
 # msaw: most similar among worst, wams: worst_among_most_similar
-n_s = "wams"
+n_s_resultarchive = "wams"
+n_s_population = "wams"
 
 # distance meature
 d_m = "euclidean"
 
 # niching distance threshhold
-n_s_t = 50
-
+n_s_t_resultarchive = 10
+n_s_t_population = 8
 
 class Individual:
     def __init__(self, state, generation, fitness_value=None):
@@ -57,7 +60,9 @@ def mutation(individual, generation, mutation_rate):
                 if check_mutation_reasonable(mutated_state):
                     break
 
-    return Individual(mutated_state, generation, individual.generation)
+    newIn = Individual(mutated_state, generation, 0)
+    newIn.fitness_value = newIn.calculate_fitness()
+    return newIn
 
 
 # Check if the seeds generated are under a reasonable situation.
@@ -118,13 +123,13 @@ def similarity(indivisual1, indivisual2, d_m):
 """
 
 
-def updateCollectionNiching(single_individual, individual_collection, threshold):
+def updateCollectionNiching(single_individual, individual_collection, threshold, n_s):
     bak = []
     # 遍历个体集合中的每个个体
     if n_s == "wams":
         flag = False
         for index, i_c in enumerate(individual_collection):
-            # 如果个体与新个体的相似度低于阈值并且个体的适应度低于新个体的适应度
+            # 如果个体与新个体的相似度小于阈值并且个体的适应度低于新个体的适应度
             if similarity(single_individual, i_c,
                           d_m) <= threshold and single_individual.fitness_value < i_c.fitness_value:
                 # 更新个体集合中的个体为新个体
@@ -217,10 +222,13 @@ def DRLGenetic(iteration, generation_iteration, population_size, crossover_rate,
 
                 if np.random.rand() < crossover_rate:
                     child1, child2 = crossover(parent1, parent2)
-                    new_population.extend(
-                        [mutation(child1, generation, mutation_rate), mutation(child2, generation, mutation_rate)])
+                    mutated_child1 = mutation(child1, generation, mutation_rate)
+                    mutated_child2 = mutation(child2, generation, mutation_rate)
+                    new_population = updateCollectionNiching(mutated_child1, new_population, n_s_t_population, n_s_population)
+                    new_population = updateCollectionNiching(mutated_child2, new_population,  n_s_t_population, n_s_population)
                 else:
-                    new_population.append(mutation(parent1, generation, mutation_rate))
+                    new_population.append(parent1)
+                    new_population.append(parent2)
 
             # 更新种群
             current_population = next_generation + new_population
@@ -248,7 +256,7 @@ def DRLGenetic(iteration, generation_iteration, population_size, crossover_rate,
             resultArchive = current_population
         else:
             for c_p in current_population:
-                resultArchive = updateCollectionNiching(c_p, resultArchive, n_s_t)
+                resultArchive = updateCollectionNiching(c_p, resultArchive,n_s_t_resultarchive, n_s_resultarchive)
         print("current result archive length: ", len(resultArchive))
         # print("Final population fitness:", final_fitness)
 
@@ -277,7 +285,12 @@ def getFitnessFromPopulation(population):
 
 
 if __name__ == "__main__":
+    start_time = time.time()
     # iteration, generation, population, crossover_rate, mutation_rate.
-    DRLGenetic(1000, 5, 20, 0.8, 0.1)
+    DRLGenetic(100, 10, 100, 0.8, 0.1)
     # check_mutation_reasonable([141.0, 33.0, -102.0, -50.0])
     # print(similarity(Individual([143, 44, -113, 100], 1), Individual([110, 50, -89, 7], 1), d_m))
+
+    end_time = time.time()
+    run_time = end_time - start_time
+    print("程序运行时间为：", run_time, "秒")
