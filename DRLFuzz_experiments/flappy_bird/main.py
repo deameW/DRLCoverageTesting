@@ -200,7 +200,7 @@ def DRLFuzz(num, n, l, alpha, theta, coverage):
         # 在初始化的state跑episode的过程中，所有过程中满足覆盖率distance的states组成了kd树
         kdTree = spatial.KDTree(data=np.array(list(allStates)), leafsize=10000)
         print("iteration {} failed cases num:{}".format(k + 1, len(resultPool)))
-        resultNum.c(len(resultPool))
+        resultNum.append(len(resultPool))
         idx = sorted(range(len(score)), key=lambda x: score[x])  # 得到score中元素排序后的对应索引（从小到大）
         for i in range(num):
             if i < int(num * alpha):

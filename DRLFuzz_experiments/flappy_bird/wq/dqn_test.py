@@ -26,6 +26,7 @@ def test_model(iteration, initial_state, mutate=False):
     env.init()
     env.reset_game()
 
+
     for i_episode in range(iteration):
         ep_r = 0
         # episode_states = []
@@ -50,7 +51,7 @@ def test_model(iteration, initial_state, mutate=False):
             ac = K_w if a else None
             r = env.act(ac)
 
-            time.sleep(0.02)
+            # time.sleep(0.02)
 
             # Record the new state returned from environment
             s_ = list(env.getGameState().values())
@@ -59,6 +60,8 @@ def test_model(iteration, initial_state, mutate=False):
             # To tell if the game is over
             done = env.game_over()
             ep_r += r
+            if ep_r > 2:
+                break
             if done:
                 # Record the information of the episode
                 score_all_episodes += ep_r
@@ -115,8 +118,6 @@ def randomGenerate():
     dist = random.randint(-120, -75)
     vel = random.randint(-56, 10)
     return [pipe1, pipe2, dist, vel]
-
-
 
 
 if __name__ == '__main__':

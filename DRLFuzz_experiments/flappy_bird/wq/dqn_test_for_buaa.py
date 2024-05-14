@@ -105,6 +105,89 @@ def test_model(initial_state, mutate=False):
     # Return the average score under a given initial state
     return env.score() + 5
 
+def test_model2(initial_state, mutate=False):
+    score_all_episodes = 0
+    # episode_data = []
+    failedEpisode = 0
+
+    dqn = DQN()
+
+    env.init()
+    env.reset_game()
+
+    # for i_episode in range(iteration):
+    ep_r = 0
+    # episode_states = []
+    env.reset_game()
+    tmp = initial_state
+    # Call TestFlappybird to initialize the game if initial states are given
+    if initial_state is not None:
+        s_ = initial_state
+        testFlappybird._init(s_[0], s_[1], s_[2], s_[3])
+
+        t_buaa = env.getGameState()
+        s_buaa =  [
+        t_buaa['player_y'],
+        t_buaa['player_vel'],
+        t_buaa['player_y'] - t_buaa['next_pipe_bottom_y'],
+        t_buaa['player_y'] - t_buaa['next_pipe_top_y'],
+        t_buaa['next_pipe_dist_to_player'],
+        t_buaa['player_y'] - t_buaa['next_next_pipe_bottom_y'],
+        t_buaa['player_y'] - t_buaa['next_next_pipe_top_y'],
+        t_buaa['next_next_pipe_dist_to_player'],
+    ]
+
+        t = list(env.getGameState().values())
+        s_ = t
+        # episode_states.append(convert_to_float([t[3], t[6], t[2] - 309, t[1]]))
+    # Let game picks initial state randomly
+    else:
+        s_ = list(env.getGameState().values())
+        # episode_states.append(convert_to_float([s_[3], s_[6], s_[2] - 309, s_[1]]))
+
+    while True:
+        dist = 0
+        curr = ((int(t_buaa['player_y'] - s_buaa[2]), int(t_buaa['player_y'] - s_buaa[5]), int(s_buaa[3] - 309), int(s_buaa[0])))
+        for i in range(len(tmp)):
+            dist += (tmp[i] - curr[i]) ** 2
+        dist = dist ** 0.5
+        if dist > innerDelta:
+            tmp = curr
+            if getDistance(curr) > delta:  # 计算S' 到State Pool中状态的距离
+                allStates.add(curr)
+
+        # Choose an action by trained model
+        s = s_
+        a = dqn.choose_action(s, 1)
+        ac = K_w if a else None
+        r = env.act(ac)
+
+        # time.sleep(0.01)
+
+        # Record the new state returned from environment
+        s_ = list(env.getGameState().values())
+        # episode_states.append(convert_to_float([s_[3], s_[6], s_[2] - 309, s_[1]]))
+
+        # To tell if the game is over
+        done = env.game_over()
+        ep_r += r
+        if done or  env.score() > 10:
+            break
+            # Record the information of the episode
+            # score_all_episodes += ep_r
+            # print('Ep: ', i_episode, '| Ep_r: ', round(
+            #     ep_r, 2))
+            # if ep_r <= 2:
+            #     failedEpisode += 1
+            # break
+    episode_data = {
+        "initial_state": initial_state,
+        "avg_award_over_episodes": score_all_episodes
+    }
+    # print("Initial State [{}]avg reward over {} episodes: ".format(initial_state, iteration), score_all_episodes / iteration)
+    # Return the average score under a given initial state
+    return episode_data
+
 
 """ 
     state的各个维度：
@@ -136,7 +219,7 @@ save_path = "./test/episode_info_random_start.json"
 
 
 def testInitialState(iteration, state):
-    return test_model(iteration, state)  # Random Initial State
+    return test_model2(state, iteration)  # Random Initial State
 
 
 def randomGenerate():
